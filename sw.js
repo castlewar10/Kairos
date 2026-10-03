@@ -1,6 +1,6 @@
 /* Cuaderno de Sincronías · funciona sin conexión.
    Primero intenta la versión más nueva de internet; si no hay red, usa la guardada. */
-var CACHE = "kairos-v1";
+var CACHE = "kairos-v2";
 var BASE = ["./", "index.html", "manifest.webmanifest", "icono-180.png", "icono-192.png", "icono-512.png"];
 
 self.addEventListener("install", function(e){

@@ -949,7 +949,7 @@
     if(!el) return;
     var n = cola.length + Object.keys(sinConfirmar).length;
     if(!almacen){ el.textContent = "conectando…"; el.className = "sync esperando"; return; }
-    if(modo === "local"){ el.textContent = "solo en este dispositivo"; el.className = "sync alerta"; return; }
+    if(modo === "local"){ el.textContent = "guardado en este teléfono"; el.className = "sync ok"; return; }
     if(errorLectura){
       el.textContent = "no pude leer la nube"+(errorCodigo ? " · "+errorCodigo : "");
       el.className = "sync alerta"; return;
@@ -963,7 +963,7 @@
     var el = document.getElementById("aviso");
     if(!el) return;
     if(modo === "local"){
-      el.hidden = false;
+      el.hidden = true; el.innerHTML = ""; return;
       el.className = "aviso alerta";
       el.innerHTML = '<b>Este cuaderno no está conectado a la nube ahora mismo.</b> '+
         'Lo que escribas aquí se guarda solo en este dispositivo y no lo verás en los demás. '+
