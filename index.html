@@ -652,6 +652,7 @@
 
   <footer class="bottom">
     <button class="ghost" id="btn-copia">Guardar copia</button>
+    <button class="ghost" id="btn-pdf">Exportar en PDF</button>
     <button class="ghost" id="btn-cargar">Cargar copia</button>
     <input type="file" id="in-copia" accept=".json,application/json" hidden>
     <button class="ghost" id="btn-exportar">Descargar en Excel</button>
@@ -674,6 +675,174 @@
   <div class="pie" id="visor-pie"></div>
   <button class="secundario" id="visor-cerrar">Cerrar</button>
 </div>
+
+
+<style id="estilo-impresion">
+/* ===== Vista de impresión =====
+   Vive fuera de la pantalla pero con su tamaño real, para poder medir las
+   hojas antes de imprimir. Al imprimir, ocupa su sitio y se oculta la app. */
+#impresion{
+  position:absolute; left:-20000px; top:0; width:210mm;
+  --papel:#F6F1E4; --papel-hondo:#EFE7D4;
+  --tinta:#241F1A; --tinta-media:#574E42; --tinta-tenue:#847765;
+  --oro:#A9833A; --oro-claro:#D9BE7C; --noche:#0B0A14;
+  color:var(--tinta);
+  font-family:"Karla","Helvetica Neue",Arial,sans-serif;
+  font-size:10.4pt; line-height:1.6;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+  #impresion *{box-sizing:border-box}
+  #impresion p{margin:0}
+  #impresion .serif{font-family:"Cormorant Garamond",Garamond,Georgia,serif}
+
+  #impresion .hoja{
+    /* una pizca menos que la hoja real: si se pasa aunque sea medio píxel,
+       el navegador parte cada hoja en dos páginas */
+    position:relative; width:210mm; height:296.6mm; overflow:hidden;
+    padding:17mm 17mm 20mm; background:var(--papel);
+    break-after:page; page-break-after:always;
+  }
+  #impresion .hoja:last-child{break-after:auto; page-break-after:auto}
+  #impresion .folio{
+    position:absolute; left:17mm; right:17mm; bottom:11mm;
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:7.4pt; letter-spacing:.22em; text-transform:uppercase;
+    color:#A2947E; border-top:1px solid #E4D9C1; padding-top:2.5mm;
+  }
+
+  /* portada */
+  #impresion .portada{
+    width:210mm; height:296.6mm; overflow:hidden; position:relative;
+    background:
+      radial-gradient(70% 55% at 18% 12%, #2A1F56 0%, rgba(42,31,86,0) 62%),
+      radial-gradient(60% 50% at 88% 22%, #15294F 0%, rgba(21,41,79,0) 58%),
+      radial-gradient(85% 60% at 50% 108%, #1C1535 0%, rgba(28,21,53,0) 62%),
+      var(--noche);
+    color:#F7F0DE; display:flex; align-items:center; justify-content:center; text-align:center;
+    break-after:page; page-break-after:always;
+  }
+  #impresion .portada .marco{position:absolute; inset:14mm; border:1px solid rgba(217,190,124,.28)}
+  #impresion .portada .centro{position:relative; padding:0 24mm}
+  #impresion .portada .astro{width:32mm; margin-bottom:9mm}
+  #impresion .portada h1{
+    margin:0; font-size:44pt; font-weight:600; letter-spacing:.02em; line-height:1; color:#F8F0DA;
+  }
+  #impresion .portada .bajo{
+    margin-top:5mm; font-size:10.5pt; letter-spacing:.42em; text-transform:uppercase; color:var(--oro-claro);
+  }
+  #impresion .portada .regla{width:52mm; height:1px; margin:9mm auto; background:rgba(217,190,124,.55)}
+  #impresion .portada .rango{font-size:13pt; font-style:italic; color:#D9D0BC}
+  #impresion .portada .cuenta{
+    margin-top:14mm; font-size:8.6pt; letter-spacing:.3em; text-transform:uppercase; color:rgba(247,240,222,.62);
+  }
+  #impresion .portada .pie{
+    position:absolute; bottom:22mm; left:0; right:0; font-size:7.8pt;
+    letter-spacing:.26em; text-transform:uppercase; color:rgba(217,190,124,.5);
+  }
+
+  /* rótulos y cifras */
+  #impresion .rotulo{
+    display:flex; align-items:baseline; gap:4mm; margin-bottom:7mm;
+    border-bottom:1px solid #DCD1B8; padding-bottom:2.5mm;
+  }
+  #impresion .rotulo h2{margin:0; font-size:19pt; font-weight:600; letter-spacing:.01em}
+  #impresion .rotulo .nota{
+    margin-left:auto; font-size:7.4pt; letter-spacing:.24em; text-transform:uppercase; color:var(--tinta-tenue);
+  }
+  #impresion .cifras{display:flex; gap:5mm; margin-bottom:9mm}
+  #impresion .cifra{
+    flex:1; background:var(--papel-hondo); border:1px solid #E2D7BF; border-radius:2mm;
+    padding:5mm 3mm; text-align:center;
+  }
+  #impresion .cifra b{display:block; font-size:26pt; font-weight:600; line-height:1.05}
+  #impresion .cifra .u{display:block; font-size:8.6pt; color:var(--tinta-media); margin-top:1mm}
+  #impresion .cifra span{
+    display:block; margin-top:2.5mm; font-size:7pt; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--tinta-tenue);
+  }
+  #impresion .cifra.destacada b{color:var(--oro)}
+  #impresion .leyenda{font-size:8pt; color:var(--tinta-tenue); margin-top:1mm}
+  #impresion .carta text.eje{font-size:9px; fill:#9D907C; letter-spacing:.06em}
+  #impresion .carta text.carril{font-size:9.5px; font-weight:500; letter-spacing:.16em; text-transform:uppercase}
+  #impresion .carta text.cod{font-size:10px; font-weight:500}
+
+  #impresion .fila-tipo{display:flex; align-items:center; gap:3.5mm; margin-bottom:2.6mm}
+  #impresion .t-nom{flex:0 0 44mm; font-size:9.6pt}
+  #impresion .t-barra{flex:1; height:1.9mm; background:#E8DEC8; border-radius:.95mm; overflow:hidden}
+  #impresion .t-barra i{display:block; height:100%; border-radius:.95mm}
+  #impresion .t-num{
+    flex:0 0 12mm; text-align:right; font-size:9.2pt; color:var(--tinta-media);
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* registros */
+  #impresion .registro{margin-bottom:8mm; padding-bottom:6mm; border-bottom:1px solid #E4D9C1}
+  #impresion .registro.sigue{border-bottom:0; padding-bottom:0; margin-bottom:0}
+  #impresion .viene{
+    font-size:7.2pt; letter-spacing:.18em; text-transform:uppercase; color:var(--tinta-tenue);
+    border-left:2px solid var(--oro-claro); padding-left:2.5mm; margin-bottom:3.5mm;
+  }
+  #impresion .reg-cab{display:flex; align-items:center; gap:3mm; flex-wrap:wrap; margin-bottom:1.5mm}
+  #impresion .p-codigo{
+    font-size:10pt; font-weight:600; color:var(--oro);
+    border:1px solid var(--oro-claro); border-radius:1.4mm; padding:.6mm 2.4mm;
+  }
+  #impresion .p-chip{
+    font-size:7.2pt; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--c); border:1px solid var(--c); border-radius:6mm; padding:.5mm 2.4mm;
+  }
+  #impresion .p-sello{
+    font-size:7.4pt; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--tinta-tenue); margin-bottom:3mm;
+  }
+  #impresion .p-beat{display:flex; gap:4mm; padding-bottom:3mm}
+  #impresion .p-rail{flex:0 0 2.6mm; position:relative}
+  #impresion .p-rail::before{
+    content:""; position:absolute; left:0; top:2.1mm; width:2.2mm; height:2.2mm;
+    border-radius:50%; background:var(--oro);
+  }
+  #impresion .p-beat:not(:last-child) .p-rail::after{
+    content:""; position:absolute; left:1mm; top:5mm; bottom:-3mm; width:.3mm;
+    background:repeating-linear-gradient(to bottom,#CDBE9C 0 1mm,transparent 1mm 2mm);
+  }
+  #impresion .p-cuerpo{flex:1; min-width:0}
+  #impresion .p-et{
+    font-size:7pt; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--tinta-tenue); margin-bottom:.8mm;
+  }
+  #impresion .p-et .f{text-transform:none; letter-spacing:.04em}
+  #impresion .p-et .d{text-transform:none; letter-spacing:.04em; color:var(--oro); font-weight:700}
+  #impresion .p-beat p{font-size:10.2pt; line-height:1.6}
+  #impresion .p-beat.abierta .p-rail::before{background:#CDBE9C}
+  #impresion .esperando{font-style:italic; color:var(--tinta-tenue)}
+  #impresion .p-pruebas{display:flex; gap:4mm; margin:4mm 0 0 6.6mm; flex-wrap:wrap}
+  #impresion .p-pruebas figure{margin:0; width:34mm}
+  #impresion .p-pruebas img{
+    width:100%; height:46mm; object-fit:cover; display:block;
+    border:1px solid #DCD1B8; border-radius:1.2mm;
+  }
+  #impresion .p-pruebas figcaption{margin-top:1.2mm; font-size:6.8pt; letter-spacing:.1em; color:var(--tinta-tenue)}
+
+  #impresion .colofon{text-align:center; padding-top:34mm}
+  #impresion .colofon .astro{width:16mm; margin-bottom:7mm}
+  #impresion .colofon p{
+    font-family:"Cormorant Garamond",Garamond,Georgia,serif;
+    font-style:italic; font-size:12pt; color:var(--tinta-media); max-width:110mm; margin:0 auto 4mm;
+  }
+  #impresion .colofon .sello-final{
+    margin-top:10mm; font-size:7.4pt; letter-spacing:.26em;
+    text-transform:uppercase; color:var(--tinta-tenue);
+  }
+
+@media print{
+  @page{ size:A4; margin:0 }
+  html,body{background:#F6F1E4 !important}
+  body > *{display:none !important}
+  body > #impresion{
+    display:block !important; position:static !important; left:auto !important;
+  }
+}
+</style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -2436,6 +2605,319 @@
       avisoPie("No se pudo preparar la descarga.");
     });
   });
+
+
+  /* ================= exportar en PDF ================= */
+  /* Se arma una vista aparte con el aspecto del cuaderno impreso y se deja
+     que el navegador la convierta en PDF (Imprimir → Guardar como PDF).
+     Así no hace falta ninguna librería y funciona también sin conexión. */
+
+  var TINTA_GRUPO = { canal:"#6A3BB0", forma:"#C0611A", pedida:"#1B6FB5", libre:"#1E7F5C" };
+  var MESL = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto",
+              "septiembre","octubre","noviembre","diciembre"];
+
+  function tintaDe(idTipo){ return TINTA_GRUPO[tipoDe(idTipo).g] || TINTA_GRUPO.libre; }
+  function anclaFecha(e){ return aFecha(e.fechaSuceso) || aFecha(e.fechaCtx); }
+  function fechaLarga(d){ return d.getDate()+" de "+MESL[d.getMonth()]+" de "+d.getFullYear(); }
+
+  function estrellaSVG(cx, cy, r, color, op){
+    var u = r/16, P = [[20,4],[21,15],[25,19],[36,20],[25,21],[21,25],[20,36],
+                       [19,25],[15,21],[4,20],[15,19],[19,15],[20,4]];
+    var tramos = [[P[0],P[1],P[2],P[3]],[P[3],P[4],P[5],P[6]],
+                  [P[6],P[7],P[8],P[9]],[P[9],P[10],P[11],P[12]]], pts = [];
+    tramos.forEach(function(t){
+      for(var i=0;i<24;i++){
+        var q=i/24, s1=1-q;
+        var x=s1*s1*s1*t[0][0]+3*s1*s1*q*t[1][0]+3*s1*q*q*t[2][0]+q*q*q*t[3][0];
+        var y=s1*s1*s1*t[0][1]+3*s1*s1*q*t[1][1]+3*s1*q*q*t[2][1]+q*q*q*t[3][1];
+        pts.push((cx+(x-20)*u).toFixed(1)+","+(cy+(y-20)*u).toFixed(1));
+      }
+    });
+    return '<polygon points="'+pts.join(" ")+'" fill="'+color+'" opacity="'+op+'"/>';
+  }
+
+  function cartaCeleste(lista){
+    var W=1000, H=260, IZQ=196, DER=58, ARR=34, ABA=50;
+    var dias = lista.map(anclaFecha).filter(Boolean);
+    if(!dias.length) return "";
+    var d0 = new Date(Math.min.apply(null, dias)), d1 = new Date(Math.max.apply(null, dias));
+    var span = Math.max(1, Math.round((d1-d0)/86400000));
+    function X(d){ return IZQ + (W-IZQ-DER) * (Math.round((d-d0)/86400000)/span); }
+    var carriles = ["canal","forma","pedida","libre"].filter(function(g){
+      return lista.some(function(e){ return tipoDe((e.tipos||["otro"])[0]).g === g; });
+    });
+    function Y(g){
+      var i = carriles.indexOf(g);
+      return carriles.length>1 ? ARR + (H-ARR-ABA)*(i/(carriles.length-1)) : (ARR+H-ABA)/2;
+    }
+    var nom = {canal:"Por dónde llegó", forma:"Cómo se presentó", pedida:"Lo pedí yo", libre:"Otro"};
+    var o = ['<svg viewBox="0 0 '+W+' '+H+'" width="100%">'];
+    for(var d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
+      if(d.getDay()===1 || d.getTime()===d0.getTime()){
+        o.push('<line x1="'+X(d).toFixed(1)+'" y1="'+(ARR-6)+'" x2="'+X(d).toFixed(1)+'" y2="'+(H-ABA+8)+'" stroke="#DED4BE" stroke-width="1"/>');
+        o.push('<text class="eje" x="'+X(d).toFixed(1)+'" y="'+(H-ABA+24)+'" text-anchor="middle">'+d.getDate()+" "+MESES[d.getMonth()]+'</text>');
+      }
+    }
+    carriles.forEach(function(g){
+      var y=Y(g), c=TINTA_GRUPO[g];
+      o.push('<line x1="'+IZQ+'" y1="'+y.toFixed(1)+'" x2="'+(W-DER)+'" y2="'+y.toFixed(1)+'" stroke="'+c+'" stroke-width="1" opacity=".22"/>');
+      o.push('<text class="carril" x="'+(IZQ-22)+'" y="'+y.toFixed(1)+'" fill="'+c+'" text-anchor="end" dominant-baseline="middle">'+esc(nom[g])+'</text>');
+    });
+    lista.forEach(function(e){
+      var a = anclaFecha(e); if(!a) return;
+      var g = tipoDe((e.tipos||["otro"])[0]).g, c = TINTA_GRUPO[g] || TINTA_GRUPO.libre;
+      var x = X(a), y = Y(g), des = e.desenlaces||[];
+      if(des.length){
+        var b = aFecha(des[0].fecha);
+        if(b && b > a){
+          var x2 = X(b);
+          o.push('<path d="M '+x.toFixed(1)+' '+y.toFixed(1)+' Q '+((x+x2)/2).toFixed(1)+' '+(y-26).toFixed(1)+' '+x2.toFixed(1)+' '+y.toFixed(1)+'" fill="none" stroke="'+c+'" stroke-width="1.6" stroke-dasharray="2 4" opacity=".65"/>');
+          o.push('<circle cx="'+x2.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3.4" fill="'+c+'"/>');
+        }
+      }
+      o.push(estrellaSVG(x, y, des.length?9:7.5, c, des.length?1:0.55));
+      o.push('<text class="cod" x="'+x.toFixed(1)+'" y="'+(y-16).toFixed(1)+'" fill="'+c+'" text-anchor="middle">'+esc(codigoDe(e))+'</text>');
+    });
+    o.push('</svg>');
+    return o.join("");
+  }
+
+  function beatPDF(etiqueta, texto, fch, dif, clase){
+    if(!texto) return "";
+    var meta = "";
+    if(fch) meta += ' · <span class="f">'+esc(fch)+'</span>';
+    if(dif) meta += ' · <span class="d">'+esc(dif)+'</span>';
+    return '<div class="p-beat '+(clase||"")+'"><div class="p-rail"></div><div class="p-cuerpo">'+
+           '<div class="p-et">'+esc(etiqueta)+meta+'</div>'+
+           '<p>'+esc(texto).replace(/\n/g,"<br>")+'</p></div></div>';
+  }
+
+  function construirImpresion(){
+    var viejo = document.getElementById("impresion");
+    if(viejo) viejo.remove();
+
+    var lista = entradas.slice().sort(function(a,b){
+      var x = anclaFecha(a), y = anclaFecha(b);
+      return (x?x.getTime():0) - (y?y.getTime():0) || (a.creado||0) - (b.creado||0);
+    });
+
+    var dias = lista.map(anclaFecha).filter(Boolean);
+    var rango = dias.length
+      ? fechaLarga(new Date(Math.min.apply(null,dias))).replace(/ de \d{4}$/,"") + " – " + fechaLarga(new Date(Math.max.apply(null,dias)))
+      : "";
+    var conDes = lista.filter(function(e){ return (e.desenlaces||[]).length; }).length;
+    var lags = lista.map(desfasePrimero).filter(Boolean).map(function(x){ return x.dias; }).sort(function(a,b){return a-b;});
+    var med = lags.length ? (lags.length%2 ? lags[(lags.length-1)/2] : Math.round((lags[lags.length/2-1]+lags[lags.length/2])/2)) : null;
+    var hoyTxt = fechaLarga(new Date());
+
+    var cuenta = {};
+    lista.forEach(function(e){ (e.tipos||[]).forEach(function(t){ cuenta[t] = (cuenta[t]||0)+1; }); });
+    var tipos = Object.keys(cuenta).sort(function(a,b){ return cuenta[b]-cuenta[a] || tipoDe(a).nombre.localeCompare(tipoDe(b).nombre); });
+    var maxT = tipos.length ? cuenta[tipos[0]] : 1;
+
+    var ASTRO = '<svg class="astro" viewBox="0 0 40 40"><path d="M20 1 C21.4 15.2, 24.8 18.6, 39 20 C24.8 21.4, 21.4 24.8, 20 39 C18.6 24.8, 15.2 21.4, 1 20 C15.2 18.6, 18.6 15.2, 20 1 Z" fill="%C%"/></svg>';
+
+    var raiz = document.createElement("div");
+    raiz.id = "impresion";
+
+    /* --- portada --- */
+    raiz.innerHTML =
+      '<section class="portada"><div class="marco"></div><div class="centro">'+
+      ASTRO.replace("%C%","#F2DCA4")+
+      '<h1 class="serif">Kairos</h1>'+
+      '<div class="bajo">Cuaderno de sincronías</div><div class="regla"></div>'+
+      '<div class="rango serif">'+esc(rango)+'</div>'+
+      '<div class="cuenta">'+lista.length+' registro'+(lista.length===1?"":"s")+'</div>'+
+      '</div><div class="pie">Copia personal · '+esc(hoyTxt)+'</div></section>';
+
+    /* --- bloques que luego se reparten en hojas --- */
+    var fuente = document.createElement("div");
+
+    var carta = document.createElement("section");
+    carta.dataset.sola = "1";
+    carta.innerHTML =
+      '<div class="rotulo"><h2 class="serif">Carta celeste</h2><span class="nota">'+esc(rango)+'</span></div>'+
+      '<div class="cifras">'+
+        '<div class="cifra"><b class="serif">'+lista.length+'</b><span>Registros</span></div>'+
+        '<div class="cifra"><b class="serif">'+conDes+'</b><span>Con desenlace</span></div>'+
+        '<div class="cifra"><b class="serif">'+(lista.length-conDes)+'</b><span>Esperando</span></div>'+
+        '<div class="cifra destacada"><b class="serif">'+(med===null?"—":med)+
+          (med===null?"":'<span class="u">'+(med===1?"día":"días")+'</span>')+'</b><span>Desfase mediano</span></div>'+
+      '</div>'+
+      '<div class="carta">'+cartaCeleste(lista)+
+        '<p class="leyenda">Cada estrella es un suceso, colocada en el día en que ocurrió. El hilo punteado llega hasta su desenlace: cuanto más largo, más tardó en materializarse. Las estrellas pálidas siguen esperando.</p>'+
+      '</div>'+
+      '<div class="rotulo" style="margin-top:4mm"><h2 class="serif" style="font-size:14pt">Por tipo</h2></div>'+
+      tipos.map(function(t){
+        return '<div class="fila-tipo"><span class="t-nom">'+esc(tipoDe(t).nombre)+'</span>'+
+               '<span class="t-barra"><i style="width:'+(100*cuenta[t]/maxT).toFixed(1)+'%;background:'+tintaDe(t)+'"></i></span>'+
+               '<span class="t-num">'+cuenta[t]+'</span></div>';
+      }).join("");
+    fuente.appendChild(carta);
+
+    var regs = document.createElement("section");
+    var html = '<div class="rotulo"><h2 class="serif">Los registros</h2><span class="nota">en orden de suceso</span></div>';
+    lista.forEach(function(e){
+      var des = e.desenlaces || [];
+      var cuerpo = "";
+      cuerpo += beatPDF("Contexto", e.contexto, textoFechaDe(e.precCtx, e.fechaCtx, e.notaCtx), "");
+      cuerpo += beatPDF("Qué ocurrió", e.ocurrio, textoFechaDe(e.prec, e.fechaSuceso, e.cuando),
+                        textoDesdeContexto(desfaseContexto(e)));
+      des.forEach(function(d,i){
+        cuerpo += beatPDF(des.length>1 ? "Desenlace "+(i+1) : "Desenlace", d.texto,
+                          fechaTexto(d.fecha), desfaseTexto(desfase(e,d)));
+      });
+      if(!des.length){
+        cuerpo += '<div class="p-beat abierta"><div class="p-rail"></div><div class="p-cuerpo">'+
+                  '<div class="p-et">Desenlace</div><p class="esperando">Aún esperando.</p></div></div>';
+      }
+      cuerpo += beatPDF("Conexión percibida", e.conexion, "", "");
+      var fotos = (e.fotos||[]).filter(function(f){ return f && f.url; });
+      var pruebas = fotos.length ? '<div class="p-pruebas">'+fotos.map(function(f){
+          return '<figure><img src="'+esc(f.url)+'" alt=""><figcaption>'+esc(fechaCorta(f.creado))+'</figcaption></figure>';
+        }).join("")+'</div>' : "";
+      html += '<article class="registro">'+
+        '<div class="reg-cab"><span class="p-codigo">'+esc(codigoDe(e))+'</span>'+
+        (e.tipos||[]).map(function(t){
+          var n = (t==="otro" && e.otroTexto) ? e.otroTexto : tipoDe(t).nombre;
+          return '<span class="p-chip" style="--c:'+tintaDe(t)+'">'+esc(n)+'</span>';
+        }).join("")+'</div>'+
+        '<div class="p-sello">Entrada del '+esc(fechaCorta(e.creado))+'</div>'+
+        '<div class="p-hilo">'+cuerpo+'</div>'+pruebas+'</article>';
+    });
+    regs.innerHTML = html;
+    fuente.appendChild(regs);
+
+    var colof = document.createElement("section");
+    colof.dataset.sola = "1";
+    colof.innerHTML = '<div class="colofon">'+ASTRO.replace("%C%","#A9833A")+
+      '<p>Este cuaderno no decide si algo fue casualidad o señal. Solo guarda la fecha en que lo escribiste, que es lo único que no se puede recordar al revés.</p>'+
+      '<div class="sello-final">Kairos · copia del '+esc(hoyTxt)+'</div></div>';
+    fuente.appendChild(colof);
+
+    document.body.appendChild(raiz);
+    raiz.__fuente = fuente;
+    return raiz;
+  }
+
+  /* Las miniaturas deben estar cargadas antes de medir, o las hojas salen mal. */
+  function esperarImagenes(raiz){
+    var imgs = Array.prototype.slice.call(raiz.querySelectorAll("img"));
+    var pend = imgs.filter(function(i){ return !i.complete; });
+    if(!pend.length) return Promise.resolve();
+    return Promise.all(pend.map(function(i){
+      return new Promise(function(res){
+        i.addEventListener("load", res, {once:true});
+        i.addEventListener("error", res, {once:true});
+        setTimeout(res, 2500);
+      });
+    }));
+  }
+
+  /* Reparte el contenido en hojas del tamaño exacto del papel. */
+  function repartirEnHojas(raiz, fuente){
+    var hojas = [], caja = null;
+    function nuevaHoja(){
+      var h = document.createElement("section");
+      h.className = "hoja";
+      caja = document.createElement("div");
+      h.appendChild(caja);
+      raiz.appendChild(h);
+      hojas.push(h);
+      return caja;
+    }
+    function disponible(){
+      var h = caja.parentNode, cs = getComputedStyle(h);
+      return h.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    }
+    function desborda(){ return caja.offsetHeight > disponible(); }
+
+    Array.prototype.slice.call(fuente.children).forEach(function(bloque){
+      var sola = bloque.dataset.sola === "1";
+      var rotulo = bloque.querySelector(".rotulo");
+      var piezas = Array.prototype.slice.call(bloque.children).filter(function(n){ return n !== rotulo; });
+
+      nuevaHoja();
+      if(rotulo) caja.appendChild(rotulo);
+      if(sola){ piezas.forEach(function(n){ caja.appendChild(n); }); return; }
+
+      piezas.forEach(function(registro){
+        if(!registro.classList || !registro.classList.contains("registro")){
+          caja.appendChild(registro);
+          if(desborda()){ caja.removeChild(registro); nuevaHoja(); caja.appendChild(registro); }
+          return;
+        }
+        var codigo = (registro.querySelector(".p-codigo")||{}).textContent || "";
+        var hilo = registro.querySelector(".p-hilo");
+        var unidades = [];
+        Array.prototype.slice.call(registro.children).forEach(function(x){
+          if(x === hilo) Array.prototype.slice.call(x.children).forEach(function(b){ unidades.push({n:b, hilo:true}); });
+          else unidades.push({n:x, hilo:false});
+        });
+        var actual = null, hiloActual = null;
+        function abrir(cont){
+          actual = document.createElement("article");
+          actual.className = "registro" + (cont ? " continuacion" : "");
+          if(cont){
+            var a = document.createElement("div");
+            a.className = "viene";
+            a.textContent = codigo + " · viene de la página anterior";
+            actual.appendChild(a);
+          }
+          hiloActual = null;
+          caja.appendChild(actual);
+        }
+        function meter(u){
+          if(u.hilo){
+            if(!hiloActual){ hiloActual = document.createElement("div"); hiloActual.className = "p-hilo"; actual.appendChild(hiloActual); }
+            hiloActual.appendChild(u.n);
+          } else actual.appendChild(u.n);
+        }
+        abrir(false);
+        unidades.forEach(function(u){
+          meter(u);
+          if(desborda()){
+            if(u.n.parentNode) u.n.parentNode.removeChild(u.n);
+            if(hiloActual && !hiloActual.children.length){ actual.removeChild(hiloActual); hiloActual = null; }
+            var teniaAlgo = !!actual.querySelector(".p-beat, .p-pruebas");
+            if(!teniaAlgo) caja.removeChild(actual); else actual.classList.add("sigue");
+            nuevaHoja();
+            abrir(teniaAlgo);
+            meter(u);
+          }
+        });
+      });
+    });
+
+    hojas.forEach(function(h, i){
+      var f = document.createElement("div");
+      f.className = "folio";
+      f.innerHTML = '<span>Kairos · cuaderno de sincronías</span><span>'+(i+1)+' / '+hojas.length+'</span>';
+      h.appendChild(f);
+    });
+  }
+
+  document.getElementById("btn-pdf").addEventListener("click", function(){
+    if(!entradas.length){ avisoPie("Todavía no hay registros que exportar."); return; }
+    avisoPie("Preparando el PDF…");
+    setTimeout(function(){
+      try{
+        var raiz = construirImpresion();
+        esperarImagenes(raiz).then(function(){
+          repartirEnHojas(raiz, raiz.__fuente);
+          avisoPie("Elige «Guardar como PDF» en el destino de impresión.");
+          setTimeout(function(){ window.print(); }, 150);
+        });
+      }catch(err){
+        avisoPie("No se pudo preparar el PDF.");
+      }
+    }, 60);
+  });
+  window.addEventListener("afterprint", function(){
+    var n = document.getElementById("impresion");
+    if(n) n.remove();
+  });
+
 
   /* Cargar una copia: añade lo que falta y actualiza lo que en la copia es más reciente.
      Nunca borra nada ni pisa una edición más nueva que la de la copia. */
