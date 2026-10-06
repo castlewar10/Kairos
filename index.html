@@ -930,7 +930,7 @@
     if(!listo) return;
     clearTimeout(tmrEspejo);
     tmrEspejo = setTimeout(function(){
-      try{ localStorage.setItem(ESPEJO, JSON.stringify(entradas)); }catch(e){}
+      try{ localStorage.setItem(ESPEJO, JSON.stringify(sinImagenes(entradas))); }catch(e){}
     }, 500);
   }
   function marcarBorrada(id){
@@ -1378,10 +1378,101 @@
 
   /* ================= almacenamiento ================= */
 
+  /* ===== Fotos sin Claude =====
+     En claude.ai las imágenes las guarda el servicio «assets». Aquí no existe,
+     así que Kairos guarda las suyas en IndexedDB (cabe mucho más que en
+     localStorage) y las mantiene en memoria para pintarlas al instante. */
+  var fotosLocales = {};          /* id -> data URI, solo en memoria */
+  var baseFotos = null;
+
+  function abrirBaseFotos(){
+    if(baseFotos) return baseFotos;
+    baseFotos = new Promise(function(res, rej){
+      if(!window.indexedDB) return rej(new Error("sin IndexedDB"));
+      var req = indexedDB.open("kairos-fotos", 1);
+      req.onupgradeneeded = function(){
+        var db = req.result;
+        if(!db.objectStoreNames.contains("fotos")) db.createObjectStore("fotos");
+      };
+      req.onsuccess = function(){ res(req.result); };
+      req.onerror = function(){ rej(req.error); };
+    });
+    return baseFotos;
+  }
+  function conTienda(modo, fn){
+    return abrirBaseFotos().then(function(db){
+      return new Promise(function(res, rej){
+        var tx = db.transaction("fotos", modo), st = tx.objectStore("fotos");
+        var r = fn(st);
+        tx.oncomplete = function(){ res(r && r.result !== undefined ? r.result : null); };
+        tx.onerror = function(){ rej(tx.error); };
+      });
+    });
+  }
+  function guardarFotoLocal(id, uri){ return conTienda("readwrite", function(st){ return st.put(uri, id); }); }
+  function borrarFotoLocal(id){ return conTienda("readwrite", function(st){ return st.delete(id); }); }
+  function cargarFotosLocales(){
+    return conTienda("readonly", function(st){ return st.getAll ? st.getAll() : null; })
+      .then(function(valores){
+        return conTienda("readonly", function(st){ return st.getAllKeys ? st.getAllKeys() : null; })
+          .then(function(claves){
+            if(!claves || !valores) return;
+            for(var i=0;i<claves.length;i++) fotosLocales[claves[i]] = valores[i];
+          });
+      }).catch(function(){});
+  }
+  function aDataUri(blob){
+    return new Promise(function(res, rej){
+      var fr = new FileReader();
+      fr.onload = function(){ res(fr.result); };
+      fr.onerror = function(){ rej(fr.error); };
+      fr.readAsDataURL(blob);
+    });
+  }
+  /* Misma forma que el «assets» de Claude, para que el resto del código no cambie */
+  function assetsLocal(){
+    return {
+      upload: function(blob){
+        return aDataUri(blob).then(function(uri){
+          var id = "kf"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+          fotosLocales[id] = uri;
+          return guardarFotoLocal(id, uri).catch(function(){}).then(function(){
+            return { id:id, url:uri, sizeBytes:blob.size, contentType:blob.type||"image/jpeg" };
+          });
+        });
+      },
+      list: function(){ return Promise.resolve({ assets:[], usage:{} }); },
+      delete: function(id){ delete fotosLocales[id]; return borrarFotoLocal(id).catch(function(){}); }
+    };
+  }
+  /* Las imágenes NO van a localStorage (se llenaría): allí solo queda su id. */
+  function sinImagenes(arr){
+    return (arr||[]).map(function(e){
+      if(!e || !e.fotos || !e.fotos.length) return e;
+      var copia = {}, k;
+      for(k in e) copia[k] = e[k];
+      copia.fotos = e.fotos.map(function(f){
+        if(!f || typeof f.url !== "string" || f.url.indexOf("data:") !== 0) return f;
+        return { id:f.id, nombre:f.nombre, creado:f.creado, local:true };
+      });
+      return copia;
+    });
+  }
+  /* Al volver a abrir la app, cada foto recupera su imagen desde IndexedDB. */
+  function rehidratarFotos(){
+    var tocado = false;
+    entradas.forEach(function(e){
+      (e.fotos||[]).forEach(function(f){
+        if(f && !f.url && f.id && fotosLocales[f.id]){ f.url = fotosLocales[f.id]; tocado = true; }
+      });
+    });
+    if(tocado) pintarLista();
+  }
+
   function almacenLocal(){
     var CLAVE = "cuaderno-sincronias-v1";
     function leer(){ try{ return JSON.parse(localStorage.getItem(CLAVE)||"[]"); }catch(e){ return []; } }
-    function escribir(a){ try{ localStorage.setItem(CLAVE, JSON.stringify(a)); }catch(e){} }
+    function escribir(a){ try{ localStorage.setItem(CLAVE, JSON.stringify(sinImagenes(a))); }catch(e){} }
     return {
       tipo:"local",
       listar: function(){ return Promise.resolve(leer()); },
@@ -2400,7 +2491,14 @@
     }).catch(function(){});
   } else {
     document.getElementById("btn-sync").hidden = true;
+    /* Fuera de claude.ai: almacén de fotos propio, para que «Adjuntar» funcione */
+    if(window.indexedDB && window.FileReader){
+      assets = assetsLocal();
+      var zonaF = document.getElementById("zona-fotos");
+      if(zonaF) zonaF.hidden = false;
+    }
     arrancar(almacenLocal());
+    cargarFotosLocales().then(rehidratarFotos);
   }
 })();
 </script>
